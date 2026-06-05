@@ -1,0 +1,19 @@
+poets:
+  - slug: Mutanabi
+    name: المتنبي
+    era: العصر العباسي
+  - slug: al-shafie
+    name: الإمام الشافعي
+    era: العصر العباسي
+  - slug: al-asmaee
+    name: الأصمعي
+    era: العصر العباسي
+  - slug: ahmed-shawqi
+    name: أحمد شوقي
+    era: العصر الحديث
+  - slug: Mahmoud-Darwish
+    name: محمود درويش
+    era: العصر الحديث
+  - slug: abu-nawas
+    name: ابو نواس
+    era: العصر العباسي

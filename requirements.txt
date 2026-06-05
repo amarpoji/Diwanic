@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+psycopg2-binary
+sentence-transformers
+qdrant-client
+python-dotenv
+pyyaml
+requests
+beautifulsoup4
