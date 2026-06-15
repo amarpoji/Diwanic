@@ -1,7 +1,6 @@
-import re
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any
 from bs4 import BeautifulSoup
-from diwanic.core.logger import get_logger
+from diwanic.utils.logger_util import get_logger
 
 logger = get_logger(__name__)
 
@@ -112,7 +111,6 @@ if __name__ == "__main__":
     
     if soup:
         data = parser.parse_poem(soup, url)
-        import json
         logger.info(f"Parsed Poem Data:")
         logger.info(f"Title: {data['title']}")
         logger.info(f"Poet: {data['poet']}")

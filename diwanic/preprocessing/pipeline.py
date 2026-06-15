@@ -4,7 +4,7 @@ Preprocessing pipeline logic for cleaning poems.
 import json
 from pathlib import Path
 from diwanic.preprocessing.cleaner import ArabicCleaner
-from diwanic.core.logger import get_logger
+from diwanic.utils.logger_util import get_logger
 
 logger = get_logger(__name__)
 
@@ -38,6 +38,9 @@ def process_poems(input_path: str, output_path: str):
             
             # 2. Store cleaned text (without diacritics) for search
             cleaned_verses = cleaner.clean_verses(poem.get('verses', []))
+            # Fallback if cleaning removed everything
+            if not cleaned_verses:
+                cleaned_verses = poem.get('verses', [])
             poem['searchable_text'] = '\n'.join(cleaned_verses)
             
             # 3. Add clean versions of metadata for exact matching

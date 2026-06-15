@@ -1,162 +1,157 @@
-# 🗺️ Diwanic — Project Flow & Source of Truth
-Last Updated: 2026-06-03
+# Diwanic Project Flow
 
-This document tracks the end-to-end data flow and the files responsible for each stage.
+## Overview
 
----
+This document outlines the data flow and architecture of the Diwanic Arabic Poetry Retrieval System (V2). The system is designed to scrape, preprocess, embed, store, and search Arabic poetry from Aldiwan.net.
 
-## 🌊 1. Data Pipeline (Version 1.0 - Current: Basic RAG)
+## Data Flow
 
-All 7 stages below are fully functional but are "Dumb" — they don't understand user intent.
+```mermaid
+flowchart LR
+    A[Scraper] --> B[Preprocessing]
+    B --> C[Embeddings]
+    C --> D[Storage: Postgres + Qdrant]
+    D --> E[Search Engine]
+    E --> F[API/CLI]
+```
 
-| Stage | Status | File / Tool |
-| :--- | :--- | :--- |
-| 1. Scrape | ✅ Done | `diwanic/scraper/pipeline.py` |
-| 2. Clean | ✅ Done | `diwanic/preprocessing/cleaner.py` |
-| 3. Database (Supabase) | ✅ Done | `diwanic/storage/db_manager.py` |
-| 4. Embed (E5-small) | ✅ Done | `diwanic/embeddings/generator.py` |
-| 5. Qdrant Cloud | ✅ Done | `diwanic/vectorstore/manager.py` |
-| 6. Hybrid Search (RRF) | ✅ Done | `diwanic/search/engine.py` |
-| 7. Web API (FastAPI) | ✅ Done | `diwanic/api/main.py` |
+### Stage 1: Scraping (`diwanic.scraper`)
+- **Input**: Poet slugs from `configs/poets.yaml`
+- **Process**: Fetch poem pages from Aldiwan.net, parse HTML, extract poem metadata and verses.
+- **Output**: Raw JSONL files (`data/raw/poems_all.jsonl`)
 
-### Version 2.0: Agentic RAG (Planned)
+### Stage 2: Preprocessing (`diwanic.preprocessing`)
+- **Input**: Raw JSONL
+- **Process**: 
+  - Clean Arabic text (remove diacritics, normalize alef/hamza variants)
+  - Generate searchable versions of text and metadata
+- **Output**: Cleaned JSONL (`data/processed/poems_cleaned.jsonl`)
 
-This is the upgrade we researched from the `production-agentic-rag-course` repo and the Substack article. It adds a "Brain" (LLM) that understands user intent.
+### Stage 3: Embedding Generation (`diwanic.embeddings`)
+- **Input**: Cleaned JSONL
+- **Process**: Generate dense vector embeddings using `intfloat/multilingual-e5-small` (Sentence-Transformers)
+- **Output**: JSONL with embeddings (`data/embeddings/poems_with_embeddings.jsonl`)
 
-| V2.0 Stage | What it adds | New Tech/Skill |
-| :--- | :--- | :--- |
-| **8. LLM Router** | Parses "Cari puisi Abu Nawas" → `{poet: "ابو نواس", theme: "شعر"}` | `instructor`, `pydantic`, Prompt Engineering |
-| **9. Re-ranker** | A second smarter model that re-checks results and discards irrelevant ones | `sentence-transformers` (Cross-Encoder) |
-| **10. Query Expansion** | LLM translates "homesick" → "الحنين + الشوق + الوجد" (3 queries instead of 1) | API Integration |
-| **11. Guardrails** | "I don't know" when results are weak | Confidence Scoring |
-| **12. Langfuse** | Tracks every search step (latency, cost, success rate) | Langfuse SDK |
-| **13. Telegram/Gradio** | Chat interface instead of raw JSON | `python-telegram-bot` / `gradio` |
+### Stage 4: Storage (`diwanic.storage` + `diwanic.vectorstore`)
+- **Input**: Embedded JSONL
+- **Process**:
+  - **Postgres**: Store poets, poems, and verses using SQLAlchemy ORM
+  - **Qdrant**: Store verse-level and poem-level vectors for similarity search
+- **Output**: Persistent data in Postgres and Qdrant collections
 
----
+### Stage 5: Search Engine (`diwanic.search`)
+- **Input**: User query (Arabic)
+- **Process**:
+  - **Intent Router** (uses 9Router or local LLM) converts query to structured `SearchPlan`
+  - **Hybrid Search Engine** executes:
+    - Vector search (semantic) on verses and poems
+    - Keyword search (fuzzy matching) on poems
+    - Reciprocal Rank Fusion (RRF) to combine results
+- **Output**: Ranked list of poems/verses with scores
 
-## 🎮 2. Executive Scripts (The "Buttons")
+### Stage 6: API & CLI (`diwanic.app` + `diwanic.cli`)
+- **API**: FastAPI endpoint (`/api/v2/search`) for programmatic access
+- **CLI**: Typer-based commands for ad-hoc search and pipeline execution
 
-| Script | Purpose | Status |
-| :--- | :--- | :--- |
-| `scripts/run_full_pipeline.py` | **Master Pipeline**: Scrape → Clean → Embed | ✅ Working |
-| `scripts/scrape_all.py` | **Stage 1 Only**: Scrape poets from config | ✅ Working |
-| `scripts/preprocess_data.py` | **Stage 2 Only**: Clean raw poems | ✅ Working |
-| `scripts/ingest_to_db.py` | **Stage 3 Only**: Upload processed data to Supabase | ✅ Complete (21 poems) |
-| `scripts/generate_embeddings.py` | **Stage 4 Only**: Generate vectors | ✅ Working |
-| `scripts/load_to_qdrant.py` | **Stage 5 Only**: Upload embeddings to Qdrant Cloud | ✅ Complete (21 vectors) |
-| `scripts/search.py` | **Stage 6 Only**: CLI Hybrid Search Tool | ✅ Working |
-| `diwanic/api/main.py` | **Stage 7 Only**: Web API Server | ✅ Working |
-| `scripts/discover_poet.py` | **Utility**: Find slug/name/era from Aldiwan URL | ✅ Working |
-| `scripts/add_poet.py` | **Utility**: Add poet to `poets.yaml` | ✅ Working |
+## Components
 
----
+### Configuration
+- Centralized in `diwanic.core.config`
+- Loads `.env` from repository root
+- Static data (poet lists, etc.) in `configs/`
 
-## 🛠️ 3. Environment Config (`.env`)
+### Infrastructure
+- Multi-stage `Dockerfile` and `docker-compose.yml` for running Postgres, Qdrant, and the App locally.
+- Thin wrappers for external clients:
+  - `diwanic.infrastructure.qdrant`: Qdrant client
+  - `diwanic.infrastructure.supabase`: (future) Supabase client
 
-Every file above uses this config heart:
-- `SCRAPER_DELAY`: Timing between web requests.
-- `DATABASE_URL`: Your Supabase connection string. ✅ Set
-- `QDRANT_URL`: Your Qdrant Cloud URL. ✅ Set
-- `QDRANT_API_KEY`: Your Qdrant API key. ✅ Set
+### Orchestration
+- Prefect-based pipelines in `diwanic.pipelines`
+- Tasks: `scrape_task`, `preprocess_task`, `embed_task`, `ingest_task`
+- Flow: `full_pipeline_flow` orchestrates the end-to-end process
 
----
+### Entry Points
+- **API**: `uvicorn diwanic.app.main:app --reload`
+- **CLI**: `python -m diwanic.cli <command>`
+  - `run-pipeline`: Execute full scraping/processing pipeline
+  - `serve`: Start the API server
+  - `search`: Perform a hybrid search from the command line
 
-## 📂 4. Project Blueprint
+## How to Run Locally
+
+1. **Setup**:
+   ```bash
+   # Clone repo and enter directory
+   cp .env.example .env
+   # Edit .env with your database and Qdrant credentials
+   pip install -e ".[dev]"
+   ```
+
+2. **Run Full Pipeline**:
+   ```bash
+   make run-flow
+   # or
+   python -m diwanic.cli run-pipeline
+   ```
+
+3. **Start API Server**:
+   ```bash
+   make run-api
+   # or
+   uvicorn diwanic.app.main:app --reload
+   ```
+
+4. **Search via CLI**:
+   ```bash
+   python -m diwanic.cli search "الحب والجمال"
+   ```
+
+## Running Tests
+
+```bash
+make test
+# or
+pytest -q
+```
+
+## Project Structure
 
 ```
 diwanic/
-├── diwanic/                    # THE KITCHEN (Classes & Logic)
-│   ├── __init__.py
-│   ├── core/                   # Config, Logger
-│   │   ├── config.py           # .env loader
-│   │   └── logger.py           # Logging utility
-│   ├── scraper/                # Stage 1: Scraping
-│   │   ├── fetcher.py          # HTTP requests + retry
-│   │   ├── parser.py           # HTML → Poem data
-│   │   ├── pipeline.py         # Batch scraping logic
-│   │   └── models.py           # Poem dataclass (schema)
-│   ├── preprocessing/          # Stage 2: Cleaning
-│   │   ├── cleaner.py          # Arabic NLP (tashkeel removal)
-│   │   └── pipeline.py         # Processing logic
-│   ├── storage/                # Stage 3: Database
-│   │   ├── db_manager.py       # Supabase/Postgres client
-│   │   └── schema.sql          # SQL Schema (moved here)
-│   ├── embeddings/             # Stage 4: Vectors
-│   │   └── generator.py        # E5 model wrapper
-│   ├── vectorstore/            # Stage 5: Qdrant
-│   │   └── manager.py          # Qdrant client (CRUD + search)
-│   ├── search/                 # Stage 6: Hybrid Search
-│   │   └── engine.py           # RRF fusion engine
-│   └── api/                    # Stage 7: Web API
-│       ├── __init__.py
-│       └── main.py             # FastAPI App
-├── scripts/                    # THE MENU (Executables)
-│   ├── run_full_pipeline.py
-│   ├── scrape_all.py
-│   ├── preprocess_data.py
-│   ├── ingest_to_db.py
-│   ├── generate_embeddings.py
-│   ├── load_to_qdrant.py
-│   ├── search.py               # ⭐ CLI Search Tool
-│   ├── discover_poet.py
-│   └── add_poet.py
-├── configs/
-│   └── poets.yaml
-├── data/
-│   ├── raw/poems_all.jsonl
-│   ├── processed/poems_cleaned.jsonl
-│   └── embeddings/poems_with_embeddings.jsonl
-├── docs/
-│   ├── README.md               # Knowledge base index
-│   ├── project_flow.md         # ← YOU ARE HERE
-│   ├── architecture/
-│   ├── decisions/
-│   ├── techniques/
-│   └── troubleshooting/
-├── .env                        # Secret keys (Qdrant, Supabase)
-├── .gitignore
-├── requirements.txt
-└── diwanic_plan.md             # Original master plan
+├── core/           # Configuration, logging
+├── app/            # FastAPI wiring, DB session
+├── api/            # HTTP routes and models
+├── models/         # SQLAlchemy ORM models
+├── schemas/        # Pydantic API models
+├── search/         # Business logic (router, engine, RRF)
+├── scraper/        # Aldiwan.net crawler
+├── preprocessing/  # Arabic text cleaning
+├── embeddings/     # Vector generation
+├── storage/        # Postgres CRUD helpers
+├── vectorstore/    # Qdrant interaction
+├── infrastructure/ # External service clients
+├── utils/          # Helper functions (logger, text splitter)
+├── configs/        # Static YAML/JSON (poet lists, etc.)
+├── cli/            # Typer-based command-line interface
+├── pipelines/      # Prefect flows and tasks
+├── tests/          # Unit and integration tests
+└── docs/           # Documentation
 ```
 
----
+## Decisions & Notes
 
-## ⭐ 5. How to Run
+- **V1 vs V2**: All code is now consolidated under the `diwanic/` package. The legacy V1 directory has been fully removed to eliminate dead code.
+- **Hybrid Search**: Combines verse-level vector search (for semantic precision) with poem-level keyword search (for lexical matching) using RRF.
+- **Extensibility**: New data sources can be added by implementing a new scraper and updating the pipeline flow.
+- **Observability**: Prefect provides built-in retry logic, logging, and a UI for monitoring pipeline runs.
 
-### One command pipeline:
-```bash
-./venv/bin/python scripts/run_full_pipeline.py --poems 30
-```
+## Contributing
 
-### Search from CLI:
-```bash
-./venv/bin/python scripts/search.py "قصائد حزينة عن الفراق"
-```
+See `CONTRIBUTING.md` (if present) or open an issue/pull request for changes.
 
-### Run Web API Server:
-```bash
-./venv/bin/python -m uvicorn diwanic.api.main:app --reload
-```
+## Running in Production
 
----
-## 🧠 V2.0 - New Technologies & Concepts You Will Learn
-
-| # | Technology / Concept | Why for Diwanic | Difficulty |
-|:--|:---------------------|:-----------------|:-----------|
-| 1 | **`instructor`** (Library) | Forces an LLM to output JSON (e.g., `{"poet":"أبو نواس","mood":"حزين"}`) so our FastAPI can read it. | Medium |
-| 2 | **Prompt Engineering** | Writing a prompt that tells the LLM: *"You are an Arabic poetry librarian. Extract poet, era, and theme from any query."* | Medium |
-| 3 | **OpenAI / Groq API** | Calls to an external LLM to do the "thinking" for user intent. | Easy |
-| 4 | **Langfuse Tracing** | A dashboard that tracks latency and cost of every call to the LLM and databases. | Medium |
-| 5 | **Structured Output / Pydantic** | Defining a Python class like `class QueryIntent(BaseModel)` that tells the LLM exactly what fields to return. | Easy-Hard |
-| 6 | **Cross-Encoder Re-ranker** | A second model that takes each search result and the query and gives a "true relevance" score. | Hard |
-| 7 | **Guardrails** | Rules like: *"If no result scores > 0.5, say 'I don't know' instead of returning bad results."* | Easy |
-| 8 | **Gradio / Telegram Bot** | A real chat interface. Instead of typing in Swagger UI, you text your bot from your phone. | Medium |
-| 9 | **LangGraph (Agentic Loop)** | Code that can loop: *"Search → Check if results are good enough → If not, try a broader search → Return."* | Hard |
-
-### 🏁 How we will start V2.0
-When you return, we will:
-1.  **Build the Router Agent** — A small LLM function that converts any user query into a structured search command.
-2.  **Rewrite `engine.py`** — Add the routing layer on top of the existing search logic.
-3.  **Test with Malay, English, and Mixed queries** — To see the multilingual power.
-
-**No rush, take your time. The project is stable, the API is running, and the data is safe. Just say the word when you're ready!**
+- Use Docker: `make build-docker` then run the container.
+- Set environment variables via `.env` or secrets manager.
+- Deploy Prefect agent to run the pipeline on schedule.

@@ -3,13 +3,12 @@ Qdrant vector store manager for Diwanic.
 Handles collection creation, data upserting, and search.
 """
 import json
-from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from diwanic.core.config import config
-from diwanic.core.logger import get_logger
+from diwanic.core.config import settings as config
+from diwanic.utils.logger_util import get_logger
 
 logger = get_logger(__name__)
 
@@ -17,17 +16,17 @@ logger = get_logger(__name__)
 class DiwanicVectorStore:
     def __init__(self):
         """Initialize Qdrant client based on configuration."""
-        if config.QDRANT_URL:
-            logger.info(f"Connecting to Qdrant Cloud: {config.QDRANT_URL}")
-            self.client = QdrantClient(
-                url=config.QDRANT_URL,
-                api_key=config.QDRANT_API_KEY
+        if config.qdrant.url:
+            logger.info(f"Connecting to Qdrant Cloud: {config.qdrant.url}")
+            return QdrantClient(
+                url=config.qdrant.url,
+                api_key=config.qdrant.api_key.get_secret_value()
             )
         else:
-            logger.info(f"Connecting to Qdrant Local: {config.QDRANT_HOST}:{config.QDRANT_PORT}")
-            self.client = QdrantClient(
-                host=config.QDRANT_HOST,
-                port=config.QDRANT_PORT
+            logger.info(f"Connecting to Qdrant Local: {config.qdrant.host}:{config.qdrant.port}")
+            return QdrantClient(
+                host=config.qdrant.host,
+                port=config.qdrant.port
             )
         
         self.collection_name = "poems"

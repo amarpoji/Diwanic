@@ -16,9 +16,9 @@ build/
 .env.local
 
 # Data (optional - uncomment if you don't want to commit embeddings)
-# data/raw/
-# data/processed/
-# data/embeddings/
+data/raw/
+data/processed/
+data/embeddings/
 
 # IDE
 .vscode/
@@ -28,3 +28,10 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+pipeline.log
+
+# Jupyter
+.ipynb_checkpoints/

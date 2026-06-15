@@ -1,36 +1,45 @@
-"""
-Configuration loader for Diwanic.
-Loads environment variables from .env file.
-"""
-import os
-from pathlib import Path
-from dotenv import load_dotenv
+from typing import ClassVar
+from pydantic import Field, SecretStr, BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Load .env file from PROJECT ROOT (not from diwanic/ subfolder)
-# This should work whether running from WSL (/mnt/c/...) or Windows
-env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_path)
-print(f"[Config] Loading .env from: {env_path}")
+class QdrantSettings(BaseModel):
+    url: str = Field(default="", description="Qdrant Cloud URL")
+    api_key: SecretStr = Field(default=SecretStr(""), description="Qdrant API key")
+    host: str = Field(default="localhost", description="Qdrant host")
+    port: int = Field(default=6333, description="Qdrant port")
+    collection_poems: str = Field(default="poems", description="Poem collection name")
+    collection_verses: str = Field(default="verses", description="Verse collection name")
 
+class DatabaseSettings(BaseModel):
+    url: SecretStr = Field(default=SecretStr(""), description="PostgreSQL connection string")
 
-class Config:
-    """Configuration class that reads from environment variables."""
+class EmbeddingSettings(BaseModel):
+    model: str = Field(default="intfloat/multilingual-e5-small", description="Embedding model name")
+    dim: int = Field(default=384, description="Embedding vector dimension")
+
+class RouterSettings(BaseModel):
+    api_key: SecretStr = Field(default=SecretStr(""), description="Router API key")
+    base_url: str = Field(default="http://localhost:20128/v1", description="Router base URL")
+    model: str = Field(default="my-combo", description="Router model name")
+
+class ScraperSettings(BaseModel):
+    base_url: str = Field(default="https://www.aldiwan.net", description="Scraper base URL")
+    delay: float = Field(default=1.5, description="Scraper delay in seconds")
+
+class Settings(BaseSettings):
+    qdrant: QdrantSettings = Field(default_factory=QdrantSettings)
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    embedding: EmbeddingSettings = Field(default_factory=EmbeddingSettings)
+    router: RouterSettings = Field(default_factory=RouterSettings)
+    scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     
-    # Scraper
-    SCRAPER_BASE_URL = os.getenv("SCRAPER_BASE_URL", "https://www.aldiwan.net")
-    SCRAPER_DELAY = float(os.getenv("SCRAPER_DELAY", "1.5"))
-    
-    # Embedding
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
-    
-    # Qdrant
-    QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-    QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-    QDRANT_URL = os.getenv("QDRANT_URL", "")  # For cloud: https://xxxxx.cloud.qdrant.io
-    QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
-    
-    # Database (optional)
-    DATABASE_URL = os.getenv("DATABASE_URL", "")
+    logfire_token: str = Field(default="", description="Logfire API token")
 
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_file=".env",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+        frozen=True,
+    )
 
-config = Config()
+settings = Settings()

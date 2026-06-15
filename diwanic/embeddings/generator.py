@@ -10,7 +10,7 @@ from typing import List
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sentence_transformers import SentenceTransformer
-from diwanic.core.logger import get_logger
+from diwanic.utils.logger_util import get_logger
 
 logger = get_logger(__name__)
 
@@ -68,68 +68,54 @@ class PoemEmbedder:
         return self.model.get_embedding_dimension()
 
 
+from diwanic.utils.text_utils import normalize_arabic
+
 def embed_poems(input_path: str, output_path: str, batch_size: int = 16):
     """
-    Load poems from JSONL, generate embeddings, and save to new JSONL.
+    Load poems from JSONL, generate embeddings for EACH VERSE, and save.
     
     Args:
         input_path: Path to poems_cleaned.jsonl
         output_path: Path to save poems_with_embeddings.jsonl
-        batch_size: Batch size for embedding generation
-    
-    Returns:
-        Number of poems embedded
     """
     embedder = PoemEmbedder()
     dim = embedder.get_embedding_dimension()
-    logger.info(f"Embedding dimension: {dim}")
     
     input_file = Path(input_path)
     output_file = Path(output_path)
-    
-    if not input_file.exists():
-        logger.error(f"Input file not found: {input_path}")
-        return 0
-    
     output_file.parent.mkdir(parents=True, exist_ok=True)
     
-    logger.info(f"Reading poems from: {input_path}")
+    logger.info(f"Generating verse-level embeddings from: {input_path}")
     
-    # First pass: collect all searchable_text
-    poems = []
-    texts = []
-    
-    with open(input_file, 'r', encoding='utf-8') as f:
-        for line in f:
+    with open(input_file, 'r', encoding='utf-8') as f_in, \
+         open(output_file, 'w', encoding='utf-8') as f_out:
+        
+        for line in f_in:
             if not line.strip():
                 continue
             poem = json.loads(line)
-            poems.append(poem)
-            texts.append(poem.get('searchable_text', ''))
-    
-    logger.info(f"Loaded {len(poems)} poems")
-    
-    if len(poems) == 0:
-        logger.warning("No poems to embed")
-        return 0
-    
-    # Generate embeddings in batches
-    logger.info(f"Generating embeddings with batch_size={batch_size}...")
-    embeddings = embedder.embed_batch(texts, batch_size=batch_size)
-    
-    # Write poems with embeddings
-    logger.info(f"Writing to: {output_path}")
-    with open(output_file, 'w', encoding='utf-8') as f:
-        for poem, embedding in zip(poems, embeddings):
-            poem['embedding'] = embedding
-            poem['model'] = embedder.model_name
-            poem['embedding_dim'] = dim
-            f.write(json.dumps(poem, ensure_ascii=False) + '\n')
-    
-    logger.info(f"✅ Embedded {len(poems)} poems")
-    logger.info(f"💾 Saved to: {output_path}")
-    
-    return len(poems)
+            
+            # 1. Get searchable verses (normalized)
+            # If the poem was already cleaned, we split the searchable_text
+            searchable_verses = poem.get("searchable_text", "").split("\n")
+            
+            # Fallback: if searchable_text is empty or count mismatch, 
+            # we re-normalize the original verses
+            if not searchable_verses or len(searchable_verses) != len(poem["verses"]):
+                searchable_verses = [normalize_arabic(v) for v in poem["verses"]]
+            
+            # 2. Embed verses in batches
+            verse_embeddings = embedder.embed_batch(searchable_verses, batch_size=batch_size)
+            
+            # 3. Add to poem object
+            poem["verse_embeddings"] = verse_embeddings
+            poem["model"] = embedder.model_name
+            poem["embedding_dim"] = dim
+            
+            f_out.write(json.dumps(poem, ensure_ascii=False) + "\n")
+            
+    logger.info(f"✅ Verse-level embedding complete.")
+    return True
 
 
 if __name__ == "__main__":

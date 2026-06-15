@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────
+# Diwanic Docker Compose
+# Spins up the full stack: Gradio UI + Qdrant + Postgres
+# Usage: docker compose up --build
+# ─────────────────────────────────────────────────────────
+
+services:
+
+  # ── Qdrant (Vector Store) ──────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: diwanic-qdrant
+    ports:
+      - "6333:6333"   # gRPC / HTTP API
+      - "6334:6334"   # Internal cluster communication
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - diwanic-net
+    restart: unless-stopped
+
+# ── PostgreSQL (Metadata Store) ────────────────────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: diwanic-pg
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-diwanic}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diwanic_secret}
+  #     POSTGRES_DB: ${POSTGRES_DB:-diwanic}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-diwanic} -d ${POSTGRES_DB:-diwanic}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   networks:
+  #     - diwanic-net
+  #   restart: unless-stopped
+
+  # ── Diwanic App (Python + Gradio UI) ──────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diwanic-app
+    ports:
+      - "7860:7860"
+    environment:
+      # Qdrant (via .env — points to Qdrant Cloud)
+      QDRANT__URL: ${QDRANT__URL}
+      QDRANT__API_KEY: ${QDRANT__API_KEY}
+      QDRANT__COLLECTION_VERSES: verses
+
+      # Postgres (via .env — points to Supabase)
+      DATABASE__URL: ${DATABASE__URL}
+
+      # Embedding
+      EMBEDDING__MODEL: intfloat/multilingual-e5-small
+      EMBEDDING__DIM: 384
+
+      # Router (must be accessible from inside Docker)
+      ROUTER__BASE_URL: ${ROUTER__BASE_URL}
+      ROUTER__API_KEY: ${ROUTER__API_KEY}
+      ROUTER__MODEL: ${ROUTER__MODEL}
+
+      # Logfire (optional)
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN:-}
+
+    volumes:
+      # Mount the source code so hot-reload works during development
+      - ./diwanic:/app/diwanic
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    networks:
+      - diwanic-net
+    restart: unless-stopped
+
+# ── Volumes ──────────────────────────────────────────────
+volumes:
+  qdrant_data:
+  postgres_data:
+
+# ── Network ──────────────────────────────────────────────
+networks:
+  diwanic-net:
+    driver: bridge
