@@ -20,7 +20,7 @@ class EmbeddingSettings(BaseModel):
 class RouterSettings(BaseModel):
     api_key: SecretStr = Field(default=SecretStr(""), description="Router API key")
     base_url: str = Field(default="http://localhost:20128/v1", description="Router base URL")
-    model: str = Field(default="my-combo", description="Router model name")
+    model: str = Field(default="deepseek-v4-flash", description="Router model name")
 
 class ScraperSettings(BaseModel):
     base_url: str = Field(default="https://www.aldiwan.net", description="Scraper base URL")
