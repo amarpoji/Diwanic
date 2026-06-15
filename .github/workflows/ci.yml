@@ -10,11 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      # Optional: if we wanted to run a local Qdrant in CI, we'd add it here.
-      # For now, we'll assume evaluation and tests use the cloud dev environment
-      # or appropriate mocks.
-
     steps:
     - uses: actions/checkout@v4
     
@@ -31,12 +26,10 @@ jobs:
         
     - name: Lint with ruff
       run: |
-        # stop the build if there are Python syntax errors or undefined names
         ruff check .
         
     - name: Run unit tests with pytest
       env:
-        # We'll need to set these up in GitHub Secrets later
         DATABASE__URL: ${{ secrets.DATABASE__URL }}
         QDRANT__URL: ${{ secrets.QDRANT__URL }}
         QDRANT__API_KEY: ${{ secrets.QDRANT__API_KEY }}
