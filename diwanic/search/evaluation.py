@@ -1,12 +1,12 @@
 import json
-
-# Observability MUST be set up before anything else
+import os
+import logfire
 from diwanic.core.observability import setup_observability
-setup_observability()
-
 from diwanic.search.engine import HybridSearchEngineV2
 from diwanic.search.router import IntentRouter
-import logfire
+
+# Initialize observability after imports
+setup_observability()
 
 class SearchEvaluator:
     def __init__(self):
@@ -78,7 +78,6 @@ class SearchEvaluator:
             logfire.info("Evaluation Complete", mrr=avg_mrr, top_k_recall=recall_top_k, total_queries=total_queries)
 
 if __name__ == "__main__":
-    import os
     golden_path = "tests/golden_set.jsonl"
     if not os.path.exists(golden_path):
         print(f"Please create a golden set at {golden_path} to run the evaluation.")

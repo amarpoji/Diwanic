@@ -1,4 +1,3 @@
-import pytest
 from diwanic.search.engine import SearchEngine
 from diwanic.search.router import SearchRouter
 

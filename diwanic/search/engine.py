@@ -114,24 +114,20 @@ class HybridSearchEngineV2:
         params = {"limit": limit}
 
         # Apply Hard Filters (Must match)
-        has_hard_filters = False
         if plan.filters.poet_name:
             normalized_poet = self._normalize_arabic_name(plan.filters.poet_name)
             sql_base += " AND REPLACE(REPLACE(REPLACE(po.name_ar, 'أ', 'ا'), 'إ', 'ا'), 'آ', 'ا') ILIKE :poet_filter"
             params["poet_filter"] = f"%{normalized_poet}%"
-            has_hard_filters = True
 
         if plan.filters.era:
             normalized_era = self._normalize_arabic_name(plan.filters.era)
             sql_base += " AND po.era ILIKE :era_filter"
             params["era_filter"] = f"%{normalized_era}%"
-            has_hard_filters = True
 
         if plan.filters.category:
             normalized_cat = self._normalize_arabic_name(plan.filters.category)
             sql_base += " AND p.category ILIKE :cat_filter"
             params["cat_filter"] = f"%{normalized_cat}%"
-            has_hard_filters = True
 
         # Build a score that rewards the poet match, title match, and term overlap.
         score_parts = ["0"]

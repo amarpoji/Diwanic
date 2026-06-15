@@ -50,7 +50,7 @@ class DiwanicVectorStore:
                 distance=models.Distance.COSINE
             )
         )
-        logger.info(f"✅ Collection created.")
+        logger.info("✅ Collection created.")
 
     def upsert_poems(self, poems_path: str):
         """Load poems with embeddings from JSONL and upsert to Qdrant."""

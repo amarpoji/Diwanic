@@ -70,7 +70,7 @@ if __name__ == "__main__":
     soup = fetcher.fetch_poem_page("poem71682.html")
     
     if soup:
-        logger.info(f"Successfully fetched poem page!")
+        logger.info("Successfully fetched poem page!")
         title = soup.title.string if soup.title else 'No Title'
         logger.info(f"Page Title: {title}")
         
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     poet_soup = fetcher.fetch_poet_page("Mutanabi")
     
     if poet_soup:
-        logger.info(f"Successfully fetched poet page!")
+        logger.info("Successfully fetched poet page!")
         poet_title = poet_soup.title.string if poet_soup.title else 'No Title'
         logger.info(f"Poet Page Title: {poet_title}")
     else:

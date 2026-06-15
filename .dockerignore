@@ -1,0 +1,39 @@
+# Git
+.git/
+.gitignore
+
+# Virtual environment (installed separately in Docker)
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Documentation & tests
+docs/
+tests/
+legacy/
+*.md
+LICENSE
+
+# Environment & secrets (mounted as volume or env vars instead)
+.env
+.env.*
+!.env.example
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

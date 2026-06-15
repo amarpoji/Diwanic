@@ -51,7 +51,7 @@ class DiwanicVerseStore:
         self.client.create_payload_index(self.collection_name, "poet", models.PayloadSchemaType.KEYWORD)
         self.client.create_payload_index(self.collection_name, "era", models.PayloadSchemaType.KEYWORD)
         self.client.create_payload_index(self.collection_name, "poem_id", models.PayloadSchemaType.KEYWORD)
-        logger.info(f"✅ Collection created with indexes.")
+        logger.info("✅ Collection created with indexes.")
 
     def upsert_verses(self, verses_data: List[Dict[str, Any]]):
         """

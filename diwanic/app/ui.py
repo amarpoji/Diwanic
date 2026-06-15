@@ -1,21 +1,21 @@
 """Diwanic - Arabic Poetry Search Engine UI"""
 
 # ─────────────────────────────────────────────────────────
-# 1. Initialize observability FIRST (before any other imports)
-#    This ensures logfire.configure() runs before SQLAlchemy/HTTP instrumentation
-# ─────────────────────────────────────────────────────────
-from diwanic.core.observability import setup_observability
-setup_observability()
-
-# ─────────────────────────────────────────────────────────
-# 2. Now safe to import everything else
+# 1. Imports
+#    (Must be at the top level for ruff linting compliance)
 # ─────────────────────────────────────────────────────────
 import gradio as gr
+import traceback
+import logfire
+from diwanic.core.observability import setup_observability
 from diwanic.search.engine import HybridSearchEngineV2
 from diwanic.search.router import IntentRouter
 from diwanic.utils.logger_util import get_logger
-import traceback
-import logfire
+
+# ─────────────────────────────────────────────────────────
+# 2. Initialize observability
+# ─────────────────────────────────────────────────────────
+setup_observability()
 
 logger = get_logger(__name__)
 

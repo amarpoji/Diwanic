@@ -4,11 +4,7 @@ from diwanic.storage.repository import DiwanicRepository
 from diwanic.app.database import SessionLocal
 import json
 
-from prefect import task
-from diwanic.storage.repository import DiwanicRepository
-from diwanic.app.database import SessionLocal
 from diwanic.vectorstore.verse_store import DiwanicVerseStore
-import json
 
 @task
 def ingest_poems_task(input_path: str = "data/embeddings/poems_with_embeddings.jsonl"):

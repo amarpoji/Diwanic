@@ -2,15 +2,13 @@
 Embedding generation for Arabic poetry using multilingual-e5-small.
 Converts searchable_text into 384-dimensional vectors.
 """
-import sys
 import json
 from pathlib import Path
 from typing import List
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from sentence_transformers import SentenceTransformer
 from diwanic.utils.logger_util import get_logger
+from diwanic.utils.text_utils import normalize_arabic
 
 logger = get_logger(__name__)
 
@@ -68,8 +66,6 @@ class PoemEmbedder:
         return self.model.get_embedding_dimension()
 
 
-from diwanic.utils.text_utils import normalize_arabic
-
 def embed_poems(input_path: str, output_path: str, batch_size: int = 16):
     """
     Load poems from JSONL, generate embeddings for EACH VERSE, and save.
@@ -114,7 +110,7 @@ def embed_poems(input_path: str, output_path: str, batch_size: int = 16):
             
             f_out.write(json.dumps(poem, ensure_ascii=False) + "\n")
             
-    logger.info(f"✅ Verse-level embedding complete.")
+    logger.info("✅ Verse-level embedding complete.")
     return True
 
 

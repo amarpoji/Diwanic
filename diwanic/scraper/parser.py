@@ -111,7 +111,7 @@ if __name__ == "__main__":
     
     if soup:
         data = parser.parse_poem(soup, url)
-        logger.info(f"Parsed Poem Data:")
+        logger.info("Parsed Poem Data:")
         logger.info(f"Title: {data['title']}")
         logger.info(f"Poet: {data['poet']}")
         logger.info(f"Era: {data['era']}")
