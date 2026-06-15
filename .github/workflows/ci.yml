@@ -20,6 +20,14 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
+    
+    - name: Cache HuggingFace models
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/huggingface
+        key: hf-models-v1-${{ runner.os }}
+        restore-keys: |
+          hf-models-v1-
         
     - name: Install dependencies
       run: |
@@ -48,5 +56,4 @@ jobs:
         ROUTER__BASE_URL: ${{ secrets.ROUTER__BASE_URL }}
         ROUTER__API_KEY: ${{ secrets.ROUTER__API_KEY }}
       run: |
-        python diwanic/search/evaluation.py || echo "Evaluation step failed but will not block CI"
-      continue-on-error: true
+        python diwanic/search/evaluation.py
