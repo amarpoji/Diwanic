@@ -6,10 +6,11 @@ from typing import List, Dict, Any
 from diwanic.search.engine import HybridSearchEngineV2
 from diwanic.search.router import IntentRouter
 from diwanic.storage.repository import DiwanicRepository
+from diwanic.app.database import SessionLocal
 
 router = IntentRouter()
 engine = HybridSearchEngineV2()
-repo = DiwanicRepository()
+repo = DiwanicRepository(SessionLocal())
 
 
 def perform_semantic_search(
@@ -19,7 +20,7 @@ def perform_semantic_search(
 ) -> List[Dict[str, Any]]:
     """
     Execute a search through the existing pipeline and return UI-ready dicts.
-    Each dict contains: id, title, snippet, mood, poet, era, score.
+    Each dict contains: id, title, snippet, category, poet, era, score.
     """
     if not query or len(query.strip()) < 2:
         return []
@@ -31,10 +32,10 @@ def perform_semantic_search(
     for r in results:
         feed.append(
             {
-                "id": getattr(r, "poem_id", None),
+                "id": str(getattr(r, "poem_id", "")),
                 "title": getattr(r, "title", ""),
                 "snippet": getattr(r, "original_text", "")[:150],
-                "mood": getattr(r, "mood", ""),
+                "category": getattr(r, "source", ""),  # SearchResult has no 'mood' field
                 "poet": getattr(r, "poet", ""),
                 "era": getattr(r, "era", ""),
                 "score": float(getattr(r, "score", 0.0)),
@@ -43,23 +44,46 @@ def perform_semantic_search(
     return feed
 
 
-def get_poem_detail(poem_id: int) -> Dict[str, Any]:
+def get_poem_detail(poem_id: str) -> Dict[str, Any]:
     """
-    Fetch the full poem payload for the detail modal.
-    Expected keys: title, full_text, poet, era, bio, insight, similar_ids, tts_path.
+    Fetch the full poem payload for the detail modal by querying the ORM.
+    Returns keys: title, full_text, poet, era, bio, category, insight, similar_ids, tts_path.
     """
-    poem = repo.get_by_id(poem_id)
-    similar = repo.find_similar(poem_id, limit=5)
-    tts_path = generate_tts_audio(poem.get("full_text", "") + " " + poem.get("first_lines", ""))
+    poem = repo.get_poem_by_id(poem_id)
+    if not poem:
+        return {}
+
+    # Poet info comes from the relationship
+    poet = poem.poet
+    poet_name = poet.name_ar if poet else ""
+    poet_era = poet.era if poet else ""
+    poet_bio = poet.bio_ar if poet else ""
+    poem_category = poem.category or ""
+
+    # Similar poems: keyword search with same poet name, exclude current poem
+    similar = []
+    try:
+        candidates = repo.search_poems_by_keyword(poet_name, limit=6)
+        for c in candidates:
+            if str(c.id) != poem_id:
+                similar.append(str(c.id))
+            if len(similar) >= 5:
+                break
+    except Exception:
+        pass
+
+    # TTS generation from the poem text
+    tts_path = generate_tts_audio(poem.original_text)
 
     return {
-        "title": poem.get("title", ""),
-        "full_text": poem.get("full_text", ""),
-        "poet": poem.get("poet", ""),
-        "era": poem.get("era", ""),
-        "bio": poem.get("poet_bio", ""),
-        "insight": poem.get("insights", ""),
-        "similar_ids": [s.get("id") for s in similar],
+        "title": poem.title,
+        "full_text": poem.original_text,
+        "poet": poet_name,
+        "era": poet_era,
+        "bio": poet_bio,
+        "category": poem_category,
+        "insight": f"التصنيف: {poem_category} | القافية: {poem.rhyme or 'غير محدد'} | البحر: {poem.meter or 'غير محدد'}",
+        "similar_ids": similar,
         "tts_path": tts_path,
     }
 
@@ -85,13 +109,13 @@ def generate_tts_audio(text: str) -> str | None:
 
 def get_poem_of_the_day() -> Dict[str, Any]:
     """
-    Return a hard-coded (or DB-backed) poem for the hero banner.
-    Replace with a real query later if desired.
+    Return a hard-coded poem for the hero banner.
+    Replace with a real DB query later if desired.
     """
     return {
         "title": "هل غادر الشعراء من متردم",
         "first_two_lines": "من أعماق التاريخ: هل غادر الشعراء من متردم...",
         "poet": "عنترة بن شداد",
         "era": "الجاهلي",
-        "mood": "فخر",
+        "category": "فخر",
     }
