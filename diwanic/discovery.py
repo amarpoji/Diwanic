@@ -1,5 +1,4 @@
 import gradio as gr
-import logfire
 from diwanic.core.observability import setup_observability
 from diwanic.search.engine import HybridSearchEngineV2
 from diwanic.search.router import IntentRouter
