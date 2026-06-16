@@ -1,13 +1,22 @@
-"""Portal bridge: thin wrappers that connect the Gradio Discovery UI to the real Diwanic engine."""
+"""Portal bridge: thin wrappers that connect the Gradio Discovery UI to the real Diwanic engine.
+
+Provides:
+  • perform_semantic_search – query → list of UI‑ready dicts
+  • get_poem_detail – full poem payload for the detail view
+  • get_all_poets – list of poets (id_str, name, era)
+  • get_poems_by_poet – list of poems for a given poet name
+"""
 
 from typing import List, Dict, Any
 
-# Core engine objects (same instances used elsewhere in the project)
+# Core engine objects
 from diwanic.search.engine import HybridSearchEngineV2
 from diwanic.search.router import IntentRouter
 from diwanic.storage.repository import DiwanicRepository
 from diwanic.app.database import SessionLocal
+from diwanic.models import Poet, Poem
 
+# Engine / repo instances
 router = IntentRouter()
 engine = HybridSearchEngineV2()
 repo = DiwanicRepository(SessionLocal())
@@ -18,13 +27,9 @@ def perform_semantic_search(
     era: str = "all",
     poet: str = "all",
 ) -> List[Dict[str, Any]]:
-    """
-    Execute a search through the existing pipeline and return UI-ready dicts.
-    Each dict contains: id, title, snippet, category, poet, era, score.
-    """
+    """Run a search through the real engine and return UI‑ready dicts."""
     if not query or len(query.strip()) < 2:
         return []
-
     plan = router.analyze_query(query)
     results = engine.search(plan, limit=10)
 
@@ -35,7 +40,7 @@ def perform_semantic_search(
                 "id": str(getattr(r, "poem_id", "")),
                 "title": getattr(r, "title", ""),
                 "snippet": getattr(r, "original_text", "")[:150],
-                "category": getattr(r, "source", ""),  # SearchResult has no 'mood' field
+                "category": getattr(r, "source", ""),
                 "poet": getattr(r, "poet", ""),
                 "era": getattr(r, "era", ""),
                 "score": float(getattr(r, "score", 0.0)),
@@ -45,22 +50,18 @@ def perform_semantic_search(
 
 
 def get_poem_detail(poem_id: str) -> Dict[str, Any]:
-    """
-    Fetch the full poem payload for the detail modal by querying the ORM.
-    Returns keys: title, full_text, poet, era, bio, category, insight, similar_ids, tts_path.
-    """
+    """Fetch full poem data for the detail modal."""
     poem = repo.get_poem_by_id(poem_id)
     if not poem:
         return {}
 
-    # Poet info comes from the relationship
     poet = poem.poet
     poet_name = poet.name_ar if poet else ""
     poet_era = poet.era if poet else ""
     poet_bio = poet.bio_ar if poet else ""
     poem_category = poem.category or ""
 
-    # Similar poems: keyword search with same poet name, exclude current poem
+    # Similar poems (same poet, limit 5, exclude current)
     similar = []
     try:
         candidates = repo.search_poems_by_keyword(poet_name, limit=6)
@@ -70,52 +71,46 @@ def get_poem_detail(poem_id: str) -> Dict[str, Any]:
             if len(similar) >= 5:
                 break
     except Exception:
-        pass
-
-    # TTS generation from the poem text
-    tts_path = generate_tts_audio(poem.original_text)
+        similar = []
 
     return {
+        "id": poem_id,
         "title": poem.title,
         "full_text": poem.original_text,
         "poet": poet_name,
         "era": poet_era,
         "bio": poet_bio,
         "category": poem_category,
-        "insight": f"التصنيف: {poem_category} | القافية: {poem.rhyme or 'غير محدد'} | البحر: {poem.meter or 'غير محدد'}",
+        "insight": f"Category: {poem_category} | Poet: {poet_name}",
         "similar_ids": similar,
-        "tts_path": tts_path,
     }
 
 
-def generate_tts_audio(text: str) -> str | None:
-    """
-    Generate an Arabic TTS file via gTTS. Returns the absolute path or None.
-    """
-    if not text:
-        return None
+def get_all_poets() -> List[Dict[str, Any]]:
+    """Return a list of all poets with string IDs."""
+    db = SessionLocal()
     try:
-        from gtts import gTTS
-        import tempfile
-        import os
-
-        output_path = os.path.join(tempfile.gettempdir(), "diwanic_tts.mp3")
-        tts = gTTS(text=text, lang="ar", slow=False)
-        tts.save(output_path)
-        return output_path
-    except Exception:
-        return None
+        poets = db.query(Poet).order_by(Poet.name_ar).all()
+        return [{"id": str(p.id), "name": p.name_ar, "era": p.era or ""} for p in poets]
+    finally:
+        db.close()
 
 
-def get_poem_of_the_day() -> Dict[str, Any]:
-    """
-    Return a hard-coded poem for the hero banner.
-    Replace with a real DB query later if desired.
-    """
-    return {
-        "title": "هل غادر الشعراء من متردم",
-        "first_two_lines": "من أعماق التاريخ: هل غادر الشعراء من متردم...",
-        "poet": "عنترة بن شداد",
-        "era": "الجاهلي",
-        "category": "فخر",
-    }
+def get_poems_by_poet(poet_name: str) -> List[Dict[str, Any]]:
+    """Return poems belonging to the given poet name."""
+    db = SessionLocal()
+    try:
+        poet = db.query(Poet).filter(Poet.name_ar == poet_name).first()
+        if not poet:
+            return []
+        poems = db.query(Poem).filter(Poem.poet_id == poet.id).order_by(Poem.title).all()
+        return [
+            {
+                "id": str(p.id),
+                "title": p.title,
+                "snippet": p.original_text[:120],
+            }
+            for p in poems
+        ]
+    finally:
+        db.close()
