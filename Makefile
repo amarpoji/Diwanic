@@ -35,4 +35,4 @@ clean:
 	rm -rf data/raw/* data/processed/* data/embeddings/*
 
 launch-ui:
-	./venv/bin/python diwanic/app/ui.py
+	./venv/bin/python run.py
