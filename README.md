@@ -1,7 +1,7 @@
 # Diwanic: Arabic Poetry RAG Engine
 
 <p align="center">
-  <img src="docs/assets/logo.png" alt="Diwanic Logo" width="400">
+  <img src="docs/assets/logo.png" alt="Diwanic Logo" width="1080">
 </p>
 
 *Explore poets you love.*
