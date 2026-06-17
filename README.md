@@ -9,105 +9,113 @@
 ---
 
 ## 📖 Project Overview
-
-**Diwanic** is an intelligent, Retrieval-Augmented Generation (RAG) powered search engine built for classical Arabic poetry. 
-
-**The Problem:** Traditional search engines often fail to understand the deep, metaphorical, and thematic nuances of Arabic poetry. A user looking for a verse about "the sorrow of departure" might get no results if the exact word "departure" isn't present, even if the poet wrote an entire poem about it.
-
-**The Solution:** Diwanic uses AI to bridge the gap between human intent and the vast repository of classical literature. It retrieves contextually relevant verses based on *meaning* rather than just keywords.
-
-**Who is this for?**
-- **Researchers & Students**: Looking to explore classical texts through themes rather than static indexing.
-- **Developers**: Interested in learning how to build robust, production-ready RAG applications.
-- **Arabic Literature Enthusiasts**: Who want to experience a new way to interact with their favorite poets.
+**Diwanic** is an intelligent, Retrieval-Augmented Generation (RAG) powered search engine built for classical Arabic poetry. It helps researchers and enthusiasts explore the deep, thematic nuances of classical texts through semantic discovery rather than static keyword matching.
 
 ---
 
-## 🏗️ High-Level Architecture
+## 🏗️ Architecture & Data Flow
 
-The system follows a classic **RAG (Retrieval-Augmented Generation)** flow, ensuring the AI has access to accurate, domain-specific data without hallucinating.
+Diwanic transforms unstructured web data into an intelligent knowledge base through a structured pipeline.
 
-1. **Ingestion**: Raw poetry is scraped and cleaned.
-2. **Embedding**: Verses are passed through a multilingual AI model to convert text into numerical vectors (coordinates).
-3. **Storage**: Vectors are stored in a **Vector Database** (Qdrant), and poem metadata is stored in **PostgreSQL**.
-4. **Retrieval**: When you search, the query is converted into a vector, and we find the most similar poems in the vector space.
-5. **Generation**: The retrieved verses provide the context for the **LLM** (DeepSeek) to provide a curated result or analysis.
+### High-Level Flow
+```mermaid
+graph TD
+    A[aldiwan.net] -->|Scraper| B(Raw Data)
+    B -->|Preprocessor| C(Cleaned Verses)
+    C -->|Embedding Model| D[Vector Space]
+    D --> E[(Qdrant Vector DB)]
+    C --> F[(PostgreSQL Metadata)]
+    
+    G[User Query] --> H{Intent Router}
+    H -->|Concept| I[Semantic Search]
+    H -->|Name/Title| J[Text Search]
+    I --> E
+    J --> F
+    K[Final Result]
+```
+
+### Data Pipeline Details
+1. **Scraping**: The scraper module fetches raw content from *aldiwan.net*.
+2. **Preprocessing**: Normalizes Arabic script, cleans HTML, and structures verses into poet/era objects.
+3. **Ingestion**: 
+   - **Vector DB (Qdrant)**: Stores embeddings for semantic "meaning-based" search.
+   - **SQL DB (PostgreSQL)**: Stores original text and metadata for reliable retrieval.
+
+---
+
+## 📥 Getting Data from the Web
+To populate the engine with poetry:
+
+1. **Configure Scraper**: Adjust `diwanic/scraper/fetcher.py` if necessary.
+2. **Run Pipeline**:
+   You can trigger the ingestion pipeline directly using the provided Makefile command:
+   ```bash
+   make run-flow
+   ```
+   *This command runs the `full_pipeline_flow`, which automatically fetches, processes, and embeds the poetry data.*
+
+---
+
+## 🛠️ Usage with `make`
+
+The `Makefile` simplifies daily operations. Here are the core commands:
+
+| Command | Description |
+| :--- | :--- |
+| `make install` | Installs project dependencies in editable mode. |
+| `make run-flow` | **Fetches/Ingests data** from the web and updates your databases. |
+| `make launch-ui` | Launches the Gradio web interface. |
+| `make test` | Runs the test suite to ensure system integrity. |
+| `make clean` | Removes caches and temporary build files. |
 
 ---
 
 ## 🧠 How RAG Works in This Project
-
-Our pipeline transforms unstructured poetry into a searchable knowledge base:
-
-- **Semantic Search**: Unlike keyword matching, we embed verses into a shared vector space where similar concepts live near each other.
-- **Intent Routing**: Before searching, the **IntentRouter** analyzes your query to determine if you want to find a specific poem, a poet, or a thematic verse.
-- **Hybrid Retrieval**: We combine **Vector Search** (for conceptual matching) with **Text Search** (for exact title or poet name matching) to guarantee accuracy.
-- **Context Window**: Retrieved verses are injected into the LLM's prompt, ensuring answers are grounded in our database.
+1. **Vectorization**: Every poem is converted into a vector (a list of numbers) representing its semantic meaning.
+2. **Hybrid Retrieval**:
+   - **Semantic**: We use `multilingual-e5-small` to match concepts (e.g., searching "sadness" finds verses about "crying").
+   - **Keyword**: We use SQL `LIKE` for precise title/author matches.
+3. **Context Construction**: When you ask a question, we combine your search with the retrieved verses and send them to the LLM (DeepSeek) to provide an insightful response.
 
 ---
 
-## 🛠️ Project Setup Instructions
+## 🚀 Setup Guide
 
-### 1. Prerequisites
-- Python 3.10+
-- PostgreSQL
-- [Docker](https://www.docker.com/) (For Qdrant and DB management)
+### 1. Requirements
+- Python 3.10+, Docker, PostgreSQL.
 
-### 2. Environment Configuration
-Create a `.env` file in the root folder with the following structure:
-
+### 2. Configuration (`.env`)
+Create a `.env` file in the root:
 ```env
-# Database
-DATABASE__URL=postgresql://user:password@host:port/dbname
-
-# Qdrant (Vector Database)
-QDRANT__URL=https://your-qdrant-url
-QDRANT__API_KEY=your_api_key
-
-# Intelligence Layer (DeepSeek or OpenAI Compatible)
-ROUTER__BASE_URL=https://api.deepseek.com
-ROUTER__API_KEY=sk-your-api-key
-
-# Optional: Disable logfire if not needed
+DATABASE__URL=postgresql://user:pass@localhost:5432/diwanic
+QDRANT__URL=https://<your-qdrant-cloud-url>
+QDRANT__API_KEY=<your-key>
+ROUTER__API_KEY=<your-deepseek-key>
 LOGFIRE_DISABLED=1
 ```
 
-### 3. Installation
+### 3. Quick Start
 ```bash
-git clone https://github.com/amarpoji/Diwanic.git
-cd Diwanic
-python -m venv venv
-source venv/bin/activate
-pip install -e .
+# 1. Install
+make install
+
+# 2. Ingest Poetry (Scrape data)
+make run-flow
+
+# 3. Launch the Search Engine
+make launch-ui
 ```
-
----
-
-## 🚀 How to Run the Project
-
-1. **Start Services**: Ensure Docker is running and your `.env` is configured.
-2. **Launch UI**:
-   ```bash
-   make launch-ui
-   ```
-   *Access the app via `http://localhost:7860` in your browser.*
+*Access the UI at `http://127.0.0.1:7860`.*
 
 ---
 
 ## 📂 Folder Structure
-
-- `/diwanic/app/`: The UI and API bridge (portal).
-- `/diwanic/core/`: Global configuration and observability setup.
-- `/diwanic/search/`: Core retrieval logic (Hybrid engine + Router).
-- `/diwanic/storage/`: Database models and repository logic.
-- `/diwanic/pipelines/`: Data ingestion and cleaning scripts.
-
----
-
-## 🔮 Future Improvements
-- **Multimodal Support**: Audio/TTS integration for reciting poems.
-- **Discovery Feed**: A smart feed that suggests poems based on your browsing history.
-- **Advanced Visualization**: Interactive maps showing how themes migrated across different eras.
+- `diwanic/app/`: UI and search bridge.
+- `diwanic/scraper/`: Web scraping logic.
+- `diwanic/pipelines/`: Data cleaning and ingestion flows.
+- `diwanic/search/`: Core hybrid retrieval logic.
+- `diwanic/storage/`: Database repositories.
 
 ---
+
 *Built with ❤️ by Amar.*
