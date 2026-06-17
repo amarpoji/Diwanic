@@ -10,10 +10,16 @@ NOTE: Lazy-initialises engine/router/repo singletons on first use to avoid
 blocking import-time (these constructors call out to Qdrant / Postgres).
 """
 
+from __future__ import annotations
+
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
-from typing import List, Dict, Any, Optional
+from typing import TYPE_CHECKING, List, Dict, Any, Optional
+
+if TYPE_CHECKING:
+    from diwanic.search.router import IntentRouter
+    from diwanic.search.engine import HybridSearchEngineV2
+    from diwanic.storage.repository import DiwanicRepository
 
 # Core engine objects — imported lazily inside functions
 _router: Optional["IntentRouter"] = None

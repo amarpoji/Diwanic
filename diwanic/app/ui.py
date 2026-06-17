@@ -8,10 +8,7 @@ Features:
 
 import gradio as gr
 from diwanic.core.observability import setup_observability
-from diwanic.app.portal import (
-    perform_semantic_search,
-    get_poem_detail,
-)
+from diwanic.app.portal import perform_semantic_search
 
 setup_observability()
 
