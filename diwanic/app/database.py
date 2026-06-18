@@ -16,6 +16,7 @@ Contracts
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from diwanic.core.config import settings as config
@@ -36,6 +37,11 @@ _async_engine_kwargs = {"echo": False}
 if not _is_sqlite:
     _engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True})
     _async_engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True})
+else:
+    # SQLite uses SingletonThreadPool, which doesn't support these pool arguments
+    _engine_kwargs.update({"poolclass": sqlalchemy.pool.StaticPool})
+    _async_engine_kwargs = {"echo": False} # Async SQLite engines are trickier, keeping minimal
+
 
 async_engine = create_async_engine(_async_db_url, **_async_engine_kwargs)
 
