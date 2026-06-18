@@ -28,7 +28,6 @@ cuda-toolkit==13.0.2
 cyclopts==4.16.1
 dateparser==1.4.0
 distro==1.9.0
--e git+https://github.com/amarpoji/Diwanic.git@95142fb1c7fed9d557ac154bdd1c19fcf4694f90#egg=diwanic
 docker==7.1.0
 docstring_parser==0.18.0
 exceptiongroup==1.3.1
@@ -48,6 +47,7 @@ groovy==0.1.2
 grpcio==1.81.0
 h11==0.16.0
 h2==4.3.0
+hermes-agent==0.10.0
 hf-gradio==0.4.1
 hf-xet==1.5.0
 hpack==4.1.0
