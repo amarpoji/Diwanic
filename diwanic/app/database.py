@@ -28,13 +28,16 @@ from diwanic.core.config import settings as config
 _db_url = config.database.url.get_secret_value()
 _async_db_url = _db_url.replace("postgresql://", "postgresql+asyncpg://")
 
-async_engine = create_async_engine(
-    _async_db_url,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    echo=False,
-)
+# Determine engine kwargs based on database type
+_is_sqlite = _db_url.startswith("sqlite")
+_engine_kwargs = {"echo": False}
+_async_engine_kwargs = {"echo": False}
+
+if not _is_sqlite:
+    _engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True})
+    _async_engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True})
+
+async_engine = create_async_engine(_async_db_url, **_async_engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
@@ -45,7 +48,7 @@ AsyncSessionLocal = async_sessionmaker(
 # ──────────────────────────────────────────────
 # Sync engine (fallback – for scripts / one-shot tasks)
 # ──────────────────────────────────────────────
-sync_engine = create_engine(_db_url)
+sync_engine = create_engine(_db_url, **_engine_kwargs)
 
 SessionLocal = sessionmaker(
     autocommit=False,
