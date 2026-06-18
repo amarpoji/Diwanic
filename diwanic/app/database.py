@@ -31,17 +31,14 @@ _async_db_url = _db_url.replace("postgresql://", "postgresql+asyncpg://")
 
 # Determine engine kwargs based on database type
 _is_sqlite = _db_url.startswith("sqlite")
-_engine_kwargs = {"echo": False}
-_async_engine_kwargs = {"echo": False}
 
-if not _is_sqlite:
-    _engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True})
-    _async_engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True})
+if _is_sqlite:
+    # SQLite uses SingletonThreadPool, which doesn't support pool arguments
+    _engine_kwargs = {"echo": False, "poolclass": sqlalchemy.pool.StaticPool}
+    _async_engine_kwargs = {"echo": False}
 else:
-    # SQLite uses SingletonThreadPool, which doesn't support these pool arguments
-    _engine_kwargs.update({"poolclass": sqlalchemy.pool.StaticPool})
-    _async_engine_kwargs = {"echo": False} # Async SQLite engines are trickier, keeping minimal
-
+    _engine_kwargs = {"echo": False, "pool_size": 10, "max_overflow": 20, "pool_pre_ping": True}
+    _async_engine_kwargs = {"echo": False, "pool_size": 10, "max_overflow": 20, "pool_pre_ping": True}
 
 async_engine = create_async_engine(_async_db_url, **_async_engine_kwargs)
 
