@@ -47,7 +47,6 @@ groovy==0.1.2
 grpcio==1.81.0
 h11==0.16.0
 h2==4.3.0
-hermes-agent==0.10.0
 hf-gradio==0.4.1
 hf-xet==1.5.0
 hpack==4.1.0
