@@ -46,7 +46,7 @@ def test_router_has_route_method():
     
     try:
         from diwanic.search.router import IntentRouter
-        assert hasattr(IntentRouter, 'route') or hasattr(IntentRouter, 'classify')
+        assert hasattr(IntentRouter, 'analyze_query')
     finally:
         for key in ['logfire', 'diwanic.search.router', 'diwanic.schemas.query']:
             if key in sys.modules:
