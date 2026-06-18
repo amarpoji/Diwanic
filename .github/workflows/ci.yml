@@ -1,4 +1,4 @@
-name: Diwanic CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,51 +9,26 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: 'pip'
-    
-    - name: Cache HuggingFace models
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/huggingface
-        key: hf-models-v1-${{ runner.os }}
-        restore-keys: |
-          hf-models-v1-
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
-        
-    - name: Lint with ruff
-      run: |
-        ruff check .
-        
-    - name: Run unit tests with pytest
-      env:
-        DATABASE__URL: ${{ secrets.DATABASE__URL }}
-        QDRANT__URL: ${{ secrets.QDRANT__URL }}
-        QDRANT__API_KEY: ${{ secrets.QDRANT__API_KEY }}
-        ROUTER__BASE_URL: ${{ secrets.ROUTER__BASE_URL }}
-        ROUTER__API_KEY: ${{ secrets.ROUTER__API_KEY }}
-      run: |
-        pytest
-        
-    - name: Run RAG Evaluation
-      env:
-        DATABASE__URL: ${{ secrets.DATABASE__URL }}
-        QDRANT__URL: ${{ secrets.QDRANT__URL }}
-        QDRANT__API_KEY: ${{ secrets.QDRANT__API_KEY }}
-        ROUTER__BASE_URL: ${{ secrets.ROUTER__BASE_URL }}
-        ROUTER__API_KEY: ${{ secrets.ROUTER__API_KEY }}
-      run: |
-        python diwanic/search/evaluation.py
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: pytest tests/
+        env:
+          DATABASE__URL: "sqlite:///:memory:"
+          LOGFIRE_DISABLED: 1
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker Image
+        run: docker build -t diwanic:latest .

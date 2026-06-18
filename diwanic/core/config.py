@@ -25,6 +25,7 @@ class RouterSettings(BaseModel):
 class ScraperSettings(BaseModel):
     base_url: str = Field(default="https://www.aldiwan.net", description="Scraper base URL")
     delay: float = Field(default=1.5, description="Scraper delay in seconds")
+    max_poems: int = Field(default=30, description="Max poems to scrape per poet")
 
 class Settings(BaseSettings):
     qdrant: QdrantSettings = Field(default_factory=QdrantSettings)

@@ -7,12 +7,17 @@ from typing import List
 from diwanic.scraper.fetcher import PoemFetcher
 from diwanic.scraper.parser import PoemParser
 from diwanic.scraper.models import Poem
+from diwanic.core.config import settings
 from diwanic.utils.logger_util import get_logger
 
 logger = get_logger(__name__)
 
-def scrape_poet_poems(slug: str, max_poems: int = 50) -> List[dict]:
+def scrape_poet_poems(slug: str, max_poems: int = None) -> List[dict]:
     """Scrape poems for a specific poet slug."""
+    # Use config value if max_poems is not provided
+    if max_poems is None:
+        max_poems = settings.scraper.max_poems
+        
     fetcher = PoemFetcher()
     parser = PoemParser()
     
@@ -68,7 +73,7 @@ def scrape_poet_poems(slug: str, max_poems: int = 50) -> List[dict]:
             
     return scraped_poems
 
-def scrape_all_poets(config_path: str = "configs/poets.yaml", max_poems_per_poet: int = 30) -> List[dict]:
+def scrape_all_poets(config_path: str = "configs/poets.yaml", max_poems_per_poet: int = None) -> List[dict]:
     """Scrape all poets defined in the config file."""
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)

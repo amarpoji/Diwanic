@@ -35,36 +35,25 @@ def format_results_html(poems, min_confidence):
         score_color = "#4CAF50" if score_pct >= 80 else "#FF9800" if score_pct >= 60 else "#f44336"
         
         card = f"""
-        <div style="
-            border:1px solid #ddd;
-            margin:10px 0;
-            padding:15px;
-            border-radius:8px;
-            background:#fafafa;">
+        <div style="border:1px solid #ddd; margin:10px 0; padding:15px; border-radius:8px; background:#fafafa;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div style="flex:1;">
-                    <div style="font-weight:bold; font-size:1.1em; margin-bottom:4px;">
-                        {i}. {title}
-                    </div>
-                    <div style="color:#666; font-size:0.9em; margin-bottom:4px;">
-                        {poet} | {era}
-                    </div>
+                    <div style="font-weight:bold; font-size:1.1em; margin-bottom:4px;">{i}. {title}</div>
+                    <div style="color:#666; font-size:0.9em; margin-bottom:4px;">{poet} | {era}</div>
                     <div style="color:#2c3e50; padding:8px; border-radius:4px; border-right:3px solid #2196F3;">
                         {snippet[:200]}{'...' if len(snippet) > 200 else ''}
                     </div>
                 </div>
                 <div style="text-align:right; min-width:80px; padding-left:12px;">
-                    <div style="
-                        background:{score_color};
-                        color:white;
-                        padding:4px 8px;
-                        border-radius:12px;
-                        font-size:0.9em;
-                        font-weight:bold;">
-                        {score_pct}%
-                    </div>
+                    <div style="background:{score_color}; color:white; padding:4px 8px; border-radius:12px; font-size:0.9em; font-weight:bold;">{score_pct}%</div>
                 </div>
             </div>
+            <details style="margin-top:10px; cursor:pointer; color:#555;">
+                <summary style="font-weight:bold;">عرض القصيدة كاملة</summary>
+                <div style="margin-top:10px; padding:10px; background:#fff; border:1px solid #eee; white-space:pre-line; color:#333; line-height:1.6;">
+                    {p.get('full_text', 'لا يوجد نص كامل')}
+                </div>
+            </details>
         </div>
         """
         cards.append(card)

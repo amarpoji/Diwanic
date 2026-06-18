@@ -10,16 +10,22 @@ from sentence_transformers import SentenceTransformer
 from diwanic.utils.logger_util import get_logger
 from diwanic.utils.text_utils import normalize_arabic
 
+from diwanic.core.config import settings
+
 logger = get_logger(__name__)
 
 class PoemEmbedder:
-    def __init__(self, model_name: str = "intfloat/multilingual-e5-small"):
+    def __init__(self, model_name: str = None):
         """
         Initialize the embedder with a multilingual model.
         
         Args:
-            model_name: HuggingFace model identifier
+            model_name: HuggingFace model identifier (defaults to settings.embedding.model)
         """
+        # Use config value if model_name is not provided
+        if model_name is None:
+            model_name = settings.embedding.model
+            
         logger.info(f"Loading model: {model_name}")
         self.model = SentenceTransformer(model_name)
         self.model_name = model_name

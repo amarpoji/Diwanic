@@ -24,7 +24,8 @@ def ingest_poems_task(input_path: str = "data/embeddings/poems_with_embeddings.j
             
             # 1. Authoritative metadata in Postgres
             poet_name = poem_data["poet"]
-            slug = poet_name.lower().replace(" ", "_")
+            # Use the slug from the scraper if available, otherwise derive it
+            slug = poem_data.get("poet_slug") or poet_name.lower().replace(" ", "_")
             poet = repo.get_poet_by_slug(slug)
             if not poet:
                 poet = repo.create_poet(slug=slug, name_ar=poet_name, era=poem_data.get("era"))
@@ -78,5 +79,7 @@ def ingest_poems_task(input_path: str = "data/embeddings/poems_with_embeddings.j
             
             count += 1
             
+    # Commit all changes atomically
+    db.commit()
     db.close()
     return count

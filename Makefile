@@ -12,10 +12,10 @@ format:
 	ruff format diwanic/ tests/
 
 test:
-	pytest -q
+	pytest tests/ --disable-warnings
 
 run-api:
-	uvicorn diwanic.app.main:app --reload
+	./venv/bin/python run_api.py
 
 run-flow:
 	./venv/bin/python3 -c "from diwanic.pipelines.flows.full_pipeline_flow import full_pipeline_flow; full_pipeline_flow()"

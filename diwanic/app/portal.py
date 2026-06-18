@@ -101,14 +101,33 @@ def perform_semantic_search(
     
     feed = []
     for r in results:
+        poem_id = str(getattr(r, "poem_id", ""))
+        
+        # Fetch full poem text from database
+        full_text = ""
+        poet_name = getattr(r, "poet", "")
+        poet_era = getattr(r, "era", "")
+        
+        if poem_id:
+            try:
+                poem_detail = get_poem_detail(poem_id)
+                full_text = poem_detail.get("full_text", "")
+                if not poet_name:
+                    poet_name = poem_detail.get("poet", "")
+                if not poet_era:
+                    poet_era = poem_detail.get("era", "")
+            except Exception:
+                full_text = getattr(r, "original_text", "")
+        
         feed.append(
             {
-                "id": str(getattr(r, "poem_id", "")),
+                "id": poem_id,
                 "title": getattr(r, "title", ""),
-                "snippet": getattr(r, "original_text", "")[:150],
+                "snippet": full_text[:150] if full_text else getattr(r, "original_text", "")[:150],
+                "full_text": full_text,  # Include full poem text
                 "category": getattr(r, "source", ""),
-                "poet": getattr(r, "poet", ""),
-                "era": getattr(r, "era", ""),
+                "poet": poet_name,
+                "era": poet_era,
                 "score": float(getattr(r, "score", 0.0)),
             }
         )
@@ -141,6 +160,7 @@ def _fallback_text_search(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                 "id": str(p.id),
                 "title": p.title,
                 "snippet": p.original_text[:150],
+                "full_text": p.original_text,  # Include full poem text
                 "category": p.category or "",
                 "poet": p.poet.name_ar if p.poet else "",
                 "era": p.poet.era if p.poet else "",

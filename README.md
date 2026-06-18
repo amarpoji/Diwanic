@@ -44,15 +44,31 @@ graph TD
 ---
 
 ## 📥 Getting Data from the Web
-To populate the engine with poetry:
+To populate the engine with poetry, you must specify the poets you want to ingest in the `configs/poets.yaml` file. 
 
-1. **Configure Scraper**: Adjust `diwanic/scraper/fetcher.py` if necessary.
-2. **Run Pipeline**:
-   You can trigger the ingestion pipeline directly using the provided Makefile command:
-   ```bash
-   make run-flow
+### Adding a New Poet
+If you want to fetch data for a new poet from *aldiwan.net*, you need to know their **slug name** and **era**. 
+
+For example, to find the slug for "Al-Mutanabbi":
+1. Go to `aldiwan.net` and find the poet's page.
+2. Look at the URL. If the URL is `https://www.aldiwan.net/cat-poet-Mutanabi`, then the **slug** is `Mutanabi`.
+3. Open `configs/poets.yaml` and add the new entry:
+   ```yaml
+   poets:
+     - slug: Mutanabi
+       name: المتنبي
+       era: العصر العباسي
    ```
-   *This command runs the `full_pipeline_flow`, which automatically fetches, processes, and embeds the poetry data.*
+
+### Limiting Poems per Poet
+By default, the scraper fetches up to **30 poems per poet**. You can adjust this by modifying the `max_poems_per_poet` parameter in the pipeline code (`diwanic/scraper/pipeline.py`), or by changing the default in `scrape_all_poets()`.
+
+### Running the Pipeline
+Once your `poets.yaml` is configured, you can trigger the ingestion pipeline directly using the provided Makefile command:
+```bash
+make run-flow
+```
+*This command runs the `full_pipeline_flow`, which automatically reads your configuration, scrapes the poet pages, cleans the verses, embeds them, and uploads everything to Qdrant and Postgres.*
 
 ---
 
