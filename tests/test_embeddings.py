@@ -1,22 +1,38 @@
+"""Tests for embeddings module."""
 import pytest
-from unittest.mock import MagicMock
-from diwanic.embeddings.generator import PoemEmbedder
+import sys
+import importlib
+
 
 def test_embedder_initialization(monkeypatch):
-    """Test that embedder loads the correct model from config."""
-    mock_st = MagicMock()
-    monkeypatch.setattr("diwanic.embeddings.generator.SentenceTransformer", lambda x: mock_st)
+    """Test that PoemEmbedder stores the model name correctly."""
+    # Prevent real SentenceTransformer from loading
+    mock_st_class = lambda name=None, **kw: type('MockModel', (), {
+        'get_embedding_dimension': lambda self: 384
+    })()
+    monkeypatch.setitem(sys.modules, 'sentence_transformers', type('FakeModule', (), {'SentenceTransformer': mock_st_class}))
     
+    if 'diwanic.embeddings.generator' in sys.modules:
+        del sys.modules['diwanic.embeddings.generator']
+    
+    from diwanic.embeddings.generator import PoemEmbedder
     embedder = PoemEmbedder(model_name="test-model")
     assert embedder.model_name == "test-model"
 
+
 def test_embed_empty_text(monkeypatch):
     """Test that embedding empty text returns a zero vector."""
-    mock_st = MagicMock()
-    mock_st.get_embedding_dimension.return_value = 384
-    monkeypatch.setattr("diwanic.embeddings.generator.SentenceTransformer", lambda x: mock_st)
+    mock_st_class = lambda name=None, **kw: type('MockModel', (), {
+        'get_embedding_dimension': lambda self: 384,
+        'encode': lambda self, text, **kw: [0.0] * 384
+    })()
+    monkeypatch.setitem(sys.modules, 'sentence_transformers', type('FakeModule', (), {'SentenceTransformer': mock_st_class}))
     
-    embedder = PoemEmbedder()
+    if 'diwanic.embeddings.generator' in sys.modules:
+        del sys.modules['diwanic.embeddings.generator']
+    
+    from diwanic.embeddings.generator import PoemEmbedder
+    embedder = PoemEmbedder(model_name="test-model")
     vec = embedder.embed_text("")
     assert len(vec) == 384
     assert all(v == 0.0 for v in vec)

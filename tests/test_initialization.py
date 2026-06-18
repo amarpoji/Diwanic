@@ -1,22 +1,53 @@
 """Tests for search router (IntentRouter)."""
 import pytest
+import sys
 
 
 def test_router_initialization_lazy():
     """Test that IntentRouter can be imported without network calls."""
-    # The router should be lazy — it should NOT try to connect on import
-    from diwanic.search.router import IntentRouter
+    # Mock logfire before import to prevent any network telemetry
+    mock_logfire = type('MockLogfire', (), {
+        'configure': lambda self, **kw: None,
+        'instrument_openai': lambda self, *a, **kw: None
+    })()
+    monkeypatch_dict = {'logfire': mock_logfire}
     
-    # Verify the class exists and can be instantiated lazily
-    # (actual connection happens only when .route() is called)
-    assert IntentRouter is not None
+    for key in ['logfire', 'diwanic.search.router', 'diwanic.schemas.query']:
+        if key in sys.modules:
+            del sys.modules[key]
     
-    # If we got here, import succeeded — network wasn't hit at import time
-    print("IntentRouter imported successfully without hitting network.")
+    # Patch logfire in sys.modules before importing router
+    sys.modules['logfire'] = mock_logfire
+    
+    try:
+        from diwanic.search.router import IntentRouter
+        assert IntentRouter is not None
+        print("IntentRouter imported successfully without hitting network.")
+    finally:
+        # Cleanup
+        for key in ['logfire', 'diwanic.search.router', 'diwanic.schemas.query']:
+            if key in sys.modules:
+                del sys.modules[key]
 
 
 def test_router_has_route_method():
     """Verify the router has the expected interface."""
-    from diwanic.search.router import IntentRouter
-    # Just check the method exists, don't call it (which would hit network)
-    assert hasattr(IntentRouter, 'route') or hasattr(IntentRouter, 'classify')
+    # Mock logfire before import to prevent any network telemetry
+    mock_logfire = type('MockLogfire', (), {
+        'configure': lambda self, **kw: None,
+        'instrument_openai': lambda self, *a, **kw: None
+    })()
+    
+    for key in ['logfire', 'diwanic.search.router', 'diwanic.schemas.query']:
+        if key in sys.modules:
+            del sys.modules[key]
+    
+    sys.modules['logfire'] = mock_logfire
+    
+    try:
+        from diwanic.search.router import IntentRouter
+        assert hasattr(IntentRouter, 'route') or hasattr(IntentRouter, 'classify')
+    finally:
+        for key in ['logfire', 'diwanic.search.router', 'diwanic.schemas.query']:
+            if key in sys.modules:
+                del sys.modules[key]
