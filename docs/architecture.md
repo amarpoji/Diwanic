@@ -46,22 +46,20 @@ We decouple business logic from database implementation using the **Repository P
 - `diwanic.storage.repository.DiwanicRepository` handles all SQL operations.
 - This allows us to swap database backends (or switch between sync/async drivers) without modifying the search engine code.
 
-## 4. Data Flow
+## 4. System Flow & Responsible Files
 
-### Ingestion (Offline Pipeline)
-1. **Scraping**: Fetches poems from `aldiwan.net`.
-2. **Preprocessing**: Normalizes Arabic diacritics and splits text into individual verses.
-3. **Embedding**: Uses `PoemEmbedder` to generate 384-dim vectors.
-4. **Storage**: Metadata (title, era, poet) is committed to `PostgreSQL`, while vectors are pushed to `Qdrant`.
+| Flow | Responsible Files | Purpose |
+| :--- | :--- | :--- |
+| **Ingestion** | `diwanic/pipelines/flows/full_pipeline_flow.py` | Orchestrates scraper/embedder/vectorstore. |
+| **Search (UI)** | `run.py` → `diwanic/app/portal.py` | UI entry point calling portal search interface. |
+| **Search (API)** | `run_api.py` → `diwanic/api/main.py` | API entry point calling portal search interface. |
+| **Hybrid Search**| `diwanic/search/engine.py` | Integrates Qdrant (semantic) + Postgres (keyword). |
+| **Database** | `diwanic/storage/repository.py` | Single interface for Postgres operations. |
+| **Embeddings** | `diwanic/embeddings/generator.py` | Multilingual E5 batch embedding with disk cache. |
 
-### Retrieval (Online Pipeline)
-1. **Query**: User provides a query.
-2. **Routing**: LLM produces a structured `SearchPlan`.
-3. **Search**: Engine performs retrieval in `Qdrant` (semantic) and `PostgreSQL` (metadata filtering).
-4. **Ranking**: Results are RRF (Reciprocal Rank Fusion) scored or returned based on hybrid confidence scores.
-5. **Display**: UI hydrates the result list with full poem content from the `PostgreSQL` store.
-
-## 5. Design Principles
-- **Lazy Initialization**: Database and AI services are instantiated only on demand to keep the system responsive.
-- **Fail-Safe Design**: The search engine includes automated fallback logic to ensure users always receive *some* result, even if external services (Qdrant/DeepSeek) are temporarily unreachable.
-- **Decoupling**: The storage layer is strictly separated from the business logic, allowing for future migrations to different search backends.
+## 5. Technology Stack
+- **FastAPI**: Lightweight, high-performance REST API.
+- **Gradio**: Rapid UI development for search exploration.
+- **SQLAlchemy (Async)**: Decoupled DB access using the Repository Pattern.
+- **Qdrant**: Vector database for verse-level semantic search.
+- **Sentence-Transformers**: Multilingual embedding model for Arabic.
