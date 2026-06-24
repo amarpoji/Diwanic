@@ -932,7 +932,7 @@ For questions, issues, or discussions:
 
 - **Issues**: [GitHub Issues](https://github.com/your-org/diwanic/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-org/diwanic/discussions)
-- **Email**: [contact@example.com](mailto:contact@example.com)
+- **Email**: [contact@example.com](mailto:amarpoji1999@example.com)
 
 ---
 

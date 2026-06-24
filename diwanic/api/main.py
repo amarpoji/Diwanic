@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Depends
 from typing import List, Dict, Any
 from diwanic.app.portal import perform_semantic_search
 from diwanic.storage.repository import DiwanicRepository
-from diwanic.app.database import SessionLocal
+from diwanic.app.database import get_db
 
 app = FastAPI(title="Diwanic API")
 
@@ -22,11 +22,9 @@ async def search(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/poet/{poet_slug}")
-async def get_poet(poet_slug: str):
-    db = SessionLocal()
+async def get_poet(poet_slug: str, db: Any = Depends(get_db)):
     repo = DiwanicRepository(db)
     poet = repo.get_poet_by_slug(poet_slug)
-    db.close()
     if not poet:
         raise HTTPException(status_code=404, detail="Poet not found")
     return {"name": poet.name_ar, "era": poet.era, "slug": poet.slug}

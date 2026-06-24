@@ -2,6 +2,12 @@ from typing import ClassVar
 from pydantic import Field, SecretStr, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
+class PrefectSettings(BaseModel):
+    account_id: str = Field(default="", description="Prefect Cloud account ID")
+    workspace_id: str = Field(default="", description="Prefect Cloud workspace ID")
+
+
 class QdrantSettings(BaseModel):
     url: str = Field(default="", description="Qdrant Cloud URL")
     api_key: SecretStr = Field(default=SecretStr(""), description="Qdrant API key")
@@ -10,22 +16,27 @@ class QdrantSettings(BaseModel):
     collection_poems: str = Field(default="poems", description="Poem collection name")
     collection_verses: str = Field(default="verses", description="Verse collection name")
 
+
 class DatabaseSettings(BaseModel):
     url: SecretStr = Field(default=SecretStr(""), description="PostgreSQL connection string")
+
 
 class EmbeddingSettings(BaseModel):
     model: str = Field(default="intfloat/multilingual-e5-small", description="Embedding model name")
     dim: int = Field(default=384, description="Embedding vector dimension")
+
 
 class RouterSettings(BaseModel):
     api_key: SecretStr = Field(default=SecretStr(""), description="Router API key")
     base_url: str = Field(default="http://localhost:20128/v1", description="Router base URL")
     model: str = Field(default="deepseek-v4-flash", description="Router model name")
 
+
 class ScraperSettings(BaseModel):
     base_url: str = Field(default="https://www.aldiwan.net", description="Scraper base URL")
     delay: float = Field(default=1.5, description="Scraper delay in seconds")
     max_poems: int = Field(default=30, description="Max poems to scrape per poet")
+
 
 class Settings(BaseSettings):
     qdrant: QdrantSettings = Field(default_factory=QdrantSettings)
@@ -33,7 +44,7 @@ class Settings(BaseSettings):
     embedding: EmbeddingSettings = Field(default_factory=EmbeddingSettings)
     router: RouterSettings = Field(default_factory=RouterSettings)
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
-    
+    prefect: PrefectSettings = Field(default_factory=PrefectSettings)
     logfire_token: str = Field(default="", description="Logfire API token")
 
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
@@ -42,5 +53,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
         frozen=True,
     )
+
 
 settings = Settings()

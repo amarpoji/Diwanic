@@ -18,10 +18,14 @@ def format_results_html(poems, min_confidence):
     if not poems:
         return "<div style='padding:20px;text-align:center;color:#999;'>لا توجد نتائج</div>"
     
-    # Filter by confidence (score is 0-1)
-    filtered = [p for p in poems if p.get("score", 0) >= min_confidence / 100.0]
+    # Filter by confidence only if the result carries a real score.
+    # Fallback results may have lower scores but should still be shown.
+    filtered = [p for p in poems if p.get("score", 0) is not None]
     if not filtered:
         return f"<div style='padding:20px;text-align:center;color:#999;'>لا توجد نتائج بحد أدنى ثقة {min_confidence}%</div>"
+    filtered = [p for p in filtered if p.get("score", 0) >= min_confidence / 100.0 or p.get("source") == "vector" or p.get("source") == "hybrid_rrf"]
+    if not filtered:
+        filtered = poems[:]
     
     # Build a simple vertical list — no JS, just clean HTML
     cards = []

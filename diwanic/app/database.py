@@ -70,6 +70,9 @@ def get_sync_session_maker():
     """Return a sync session maker bound to the sync engine."""
     return sessionmaker(autocommit=False, autoflush=False, bind=get_sync_engine())
 
+# Legacy alias for backward compatibility
+SessionLocal = get_sync_session_maker()
+
 
 # ──────────────────────────────────────────────
 # Public helpers (for FastAPI dependency injection)
