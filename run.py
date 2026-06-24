@@ -7,10 +7,12 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from diwanic.app.ui import build_ui
+from diwanic.app.portal import init_engine
 
 
 def run():
     """Build and launch the Gradio UI."""
+    init_engine()
     app = build_ui()
     app.launch(
         server_name="0.0.0.0",

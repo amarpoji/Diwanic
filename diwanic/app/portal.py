@@ -16,6 +16,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
+from diwanic.utils.logger_util import get_logger
+
 if TYPE_CHECKING:
     from diwanic.search.router import IntentRouter
     from diwanic.search.engine import HybridSearchEngineV2
@@ -73,6 +75,21 @@ def _get_repo():
 
 
 # ---------------------------------------------------------------------------
+# Eager initialization – call at app startup to avoid cold-start on first search
+# ---------------------------------------------------------------------------
+
+def init_engine():
+    """Warm up engine, router, and repo at startup instead of first search."""
+    import logfire
+    with logfire.span("eager_init"):
+        _get_engine()
+        _get_router()
+        _get_repo()
+        logger = get_logger(__name__)
+        logger.info("✅ Engine, router, and repo initialized at startup.")
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -82,22 +99,14 @@ def perform_semantic_search(
     poet: str = "all",
     limit: int = 10,
 ) -> List[Dict[str, Any]]:
-    """Run a search through the real engine and return UI‑ready dicts.
-    
-    Falls back to simple text matching if the embedding service times out.
-    """
+    """Run a search through the real engine and return UI‑ready dicts."""
     if not query or len(query.strip()) < 2:
         return []
-    
-    # First try the full semantic engine with timeout
-    try:
-        router = _get_router()
-        engine = _get_engine()
-        plan = router.analyze_query(query)
-        results = engine.search(plan, limit=limit)
-    except Exception as e:
-        print(f"[WARN] Semantic search failed: {e}, falling back to text search")
-        return _fallback_text_search(query, limit)
+
+    router = _get_router()
+    engine = _get_engine()
+    plan = router.analyze_query(query)
+    results = engine.search(plan, limit=limit)
     
     feed = []
     for r in results:

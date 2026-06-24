@@ -33,5 +33,13 @@ Thumbs.db
 *.log
 pipeline.log
 
+# Qdrant
+qdrant
+storage/
+qdrant.log
+
+# Scripts
+scripts/
+
 # Jupyter
 .ipynb_checkpoints/

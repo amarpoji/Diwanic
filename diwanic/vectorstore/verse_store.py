@@ -53,6 +53,25 @@ class DiwanicVerseStore:
         self.client.create_payload_index(self.collection_name, "poem_id", models.PayloadSchemaType.KEYWORD)
         logger.info("✅ Collection created with indexes.")
 
+    def ensure_collection(self, vector_size: int = 384):
+        """Create the collection if it doesn't exist yet."""
+        collections = self.client.get_collections().collections
+        if any(c.name == self.collection_name for c in collections):
+            return
+        logger.info(f"Collection '{self.collection_name}' not found — creating it...")
+        self.client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=models.VectorParams(
+                size=vector_size,
+                distance=models.Distance.COSINE
+            )
+        )
+        for field in ("poet", "era", "poem_id"):
+            self.client.create_payload_index(
+                self.collection_name, field, models.PayloadSchemaType.KEYWORD
+            )
+        logger.info(f"✅ Collection '{self.collection_name}' created with indexes.")
+
     def upsert_verses(self, verses_data: List[Dict[str, Any]]):
         """
         Upsert verses to Qdrant with deterministic IDs (poem_id:verse_index)
@@ -70,6 +89,9 @@ class DiwanicVerseStore:
             }
         }
         """
+        # Ensure the Qdrant collection exists before upserting
+        self.ensure_collection()
+
         # Namespace for generating deterministic UUIDs
         DIWANIC_NAMESPACE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8') # Using DNS namespace as base
 

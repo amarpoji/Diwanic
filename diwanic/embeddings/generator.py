@@ -61,8 +61,8 @@ class PoemEmbedder:
         
         # Compute embedding
         prefixed_text = prefix + text
-        embedding = self.model.encode(prefixed_text)
-        result = embedding.tolist()
+        embedding = self.model.encode(prefixed_text) #  automatically turn to numpy array
+        result = embedding.tolist() # turn it to standard list . more compatible with json
         
         # Cache the result
         self.cache.set(text, result)
@@ -80,40 +80,37 @@ class PoemEmbedder:
             batch_size: Number of texts to process at once
         
         Returns:
-            List of embedding vectors
+            List of embedding vectors, preserving input order
         """
-        # Split texts into cached vs. to-embed
-        to_embed = []
-        indices = []
-        
+        dim = self.model.get_embedding_dimension()
+        results: list = [None] * len(texts)
+        to_embed: List[str] = []
+        need_indices: List[int] = []
+
+        # Check cache first
         for i, text in enumerate(texts):
             cached = self.cache.get(text)
             if cached is not None:
-                # Use cached result directly
-                yield cached  # This won't work in a list comprehension, fix below
+                results[i] = cached
             else:
                 to_embed.append(text)
-                indices.append(i)
-        
-        # If we have texts without embeddings, compute them in batch
+                need_indices.append(i)
+
+        # Compute only uncached texts in batch
         if to_embed:
-            prefixed_texts = [prefix + text for text in to_embed]
-            new_embeddings = self.model.encode(prefixed_texts, batch_size=batch_size).tolist()
-            
-            # Cache each new embedding
-            for text, emb in zip(to_embed, new_embeddings):
+            prefixed = [prefix + text for text in to_embed]
+            embeddings = self.model.encode(prefixed, batch_size=batch_size).tolist()
+            for text, emb in zip(to_embed, embeddings):
                 self.cache.set(text, emb)
-        
-        # Reconstruct the full list (simpler approach: compute all at once but cache results)
-        all_prefixed = [prefix + text for text in texts]
-        all_embeddings = self.model.encode(all_prefixed, batch_size=batch_size).tolist()
-        
-        # Update cache with newly computed embeddings
-        for text, emb in zip(texts, all_embeddings):
-            if self.cache.get(text) is None:
-                self.cache.set(text, emb)
-        
-        return all_embeddings
+            for idx, emb in zip(need_indices, embeddings):
+                results[idx] = emb
+
+        # Fill any remaining None with zero vectors
+        for i in range(len(results)):
+            if results[i] is None:
+                results[i] = [0.0] * dim
+
+        return results
     
     def get_embedding_dimension(self) -> int:
         """Get the dimensionality of the embeddings."""

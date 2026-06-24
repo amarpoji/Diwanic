@@ -6,6 +6,13 @@ import os
 # Ensure the project root is on the path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+# Initialize observability before any Logfire-instrumented imports
+from diwanic.core.observability import setup_observability
+setup_observability()
+
+from diwanic.app.portal import init_engine
+init_engine()
+
 from diwanic.api.main import app
 import uvicorn
 

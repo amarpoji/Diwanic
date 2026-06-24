@@ -53,15 +53,17 @@ class HybridSearchEngineV2:
             self.qdrant = QdrantClient(
                 url=config.qdrant.url,
                 api_key=config.qdrant.api_key.get_secret_value(),
-                timeout=60.0
+                timeout=60.0,
+                check_compatibility=False
             )
         else:
             self.qdrant = QdrantClient(
                 host=config.qdrant.host,
                 port=config.qdrant.port,
-                timeout=60.0
+                timeout=60.0,
+                check_compatibility=False
             )
-        self.collection_name = "poems"
+        self.collection_name = "verses"
         # Initialize embedding model (using the same one from V1 for consistency)
         self.model = SentenceTransformer('intfloat/multilingual-e5-small')
 
@@ -332,57 +334,76 @@ class HybridSearchEngineV2:
             # 5. Hydrate from Postgres (Authoritative Truth)
             repo = DiwanicRepository(self.db)
             final_results = []
-            
+
             for d in fused_dicts:
                 poem_id = d.get("poem_id")
                 verse_idx = d.get("verse_index")
-                
-                # Fetch AUTHORITATIVE data from Postgres
+
                 poem_obj = repo.get_poem_by_id(poem_id)
-                
                 if not poem_obj:
                     continue
 
-                # Base metadata from Postgres
+                poet_name = poem_obj.poet.name_ar if poem_obj.poet else "Unknown"
+                poet_era = poem_obj.poet.era if poem_obj.poet else None
+
                 hydrated = {
                     "poem_id": str(poem_obj.id),
                     "title": poem_obj.title,
-                    "poet": poem_obj.poet.name_ar if poem_obj.poet else "Unknown",
-                    "era": poem_obj.poet.era if poem_obj.poet else None,
+                    "poet": poet_name,
+                    "era": poet_era,
                     "score": d.get("rrf_score", 0.0),
                     "source": "hybrid_rrf",
+                    "match_type": "poem",
                 }
 
-                # Verse-specific hydration
                 if verse_idx is not None:
-                    # Find the specific verse in Postgres using Repository
                     verse_obj = repo.get_verse(poem_id, verse_idx)
                     if verse_obj:
                         hydrated.update({
                             "original_text": verse_obj.original_text,
                             "searchable_text": verse_obj.searchable_text,
                             "verse_index": verse_idx,
-                            "match_type": "verse"
+                            "match_type": "verse",
                         })
                     else:
-                        # Fallback to poem text if verse not found in DB
                         hydrated.update({
                             "original_text": poem_obj.original_text,
                             "searchable_text": poem_obj.searchable_text,
-                            "match_type": "poem"
                         })
                 else:
-                    # Poem-level match
                     hydrated.update({
                         "original_text": poem_obj.original_text,
                         "searchable_text": poem_obj.searchable_text,
-                        "match_type": "poem"
                     })
 
-                final_results.append(SearchResult(**hydrated))
+                try:
+                    final_results.append(SearchResult(**hydrated))
+                except Exception as exc:
+                    logfire.warn("Skipping invalid search result during hydration", poem_id=poem_id, error=str(exc))
 
-                if len(final_results) >= limit:
+            # 6. Deduplicate by poem_id — keep only the highest-scoring result per poem
+            seen_poems: set = set()
+            deduped: List[SearchResult] = []
+            for r in final_results:
+                if r.poem_id not in seen_poems:
+                    seen_poems.add(r.poem_id)
+                    deduped.append(r)
+                if len(deduped) >= limit:
                     break
+            final_results = deduped
+
+            if not final_results:
+                # Fallback: if RRF/hydration produces nothing, return raw verse results
+                # so the UI still shows relevant matches instead of an empty page.
+                fallback = []
+                for r in v_results[:limit]:
+                    fallback.append(r)
+                for r in k_results:
+                    if len(fallback) >= limit:
+                        break
+                    fallback.append(r)
+                logfire.warn("Search hydration produced no final results; returning fallback results", verse_count=len(v_results), keyword_count=len(k_results), fallback_count=len(fallback))
+                return fallback[:limit]
 
             logfire.info("Search hydration complete", count=len(final_results))
             return final_results
